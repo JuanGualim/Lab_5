@@ -3,6 +3,7 @@
 //! Rasterizador por software con tres modos (`TriangleMode`): contorno, relleno con coordenadas
 //! baricéntricas y relleno por líneas horizontales.
 
+pub mod benchmark;
 pub mod color;
 pub mod compare;
 pub mod fragment;
