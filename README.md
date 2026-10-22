@@ -22,6 +22,7 @@ cargo run --release -- --compare                      # compara posiciones baric
 cargo run --release -- --export-images docs/img       # un PNG por caso y por modo (sin ventana)
 cargo run --release -- --screenshots docs/capturas    # capturas de la ventana con el HUD
 cargo test --release                                  # pruebas automáticas
+cargo flamegraph -- --benchmark-triangles             # perfil (requiere perf y cargo-flamegraph)
 ```
 
 **Controles de la ventana:** `1` Wireframe · `2` FilledBarycentric · `3` FilledScanline · `←`/`→` cambiar de caso · `ESC` salir.
@@ -218,43 +219,72 @@ Wireframe genera 1 573 / 2 106 / 1 353 / 1 619 / 2 049 / 6 772 / 136 792 fragmen
 
 ### Cómo se generó el perfil
 
-El enunciado sugiere `cargo flamegraph -- --benchmark-triangles`. En Linux, `cargo-flamegraph` necesita `perf`, que en mi equipo no está instalado y requiere permisos de administrador. Por eso añadí al programa un perfilador por muestreo dentro del proceso ([`pprof`](https://crates.io/crates/pprof), como *feature* opcional). Usa `SIGPROF` y genera el mismo tipo de flamegraph:
+Usé el comando del enunciado: `cargo-flamegraph` (que usa `perf`) con el modo `--benchmark-triangles`. Este modo rasteriza repetidamente los triángulos y termina sin abrir la ventana:
+
+```bash
+cargo flamegraph -- --benchmark-triangles
+```
+
+Con ese comando `perf` reconstruye las pilas a partir de una copia limitada de la pila (modo DWARF). En mi primera ejecución, el 74 % de las muestras quedaron cortadas en un bloque `[unknown]` y `rasterize` solo aparecía con el 7.5 %. Para que todas las pilas lleguen hasta `main`, el perfil del repositorio se generó compilando con *frame pointers* y pidiéndole a `perf` que los use:
+
+```bash
+CARGO_TARGET_DIR=target/fp RUSTFLAGS="-C force-frame-pointers=yes" \
+  cargo flamegraph -c "record -F 997 --call-graph fp -g" -o docs/flamegraph_perf.svg \
+  -- --benchmark-triangles --repeats 5
+```
+
+`CARGO_TARGET_DIR` solo evita que esa compilación especial reemplace la normal. En `Cargo.toml` se activan los símbolos de depuración del perfil `release` para que aparezcan los nombres de las funciones.
+
+El perfil es [`docs/flamegraph_perf.svg`](docs/flamegraph_perf.svg). Ábranlo en el navegador para que sea interactivo (se puede hacer zoom y buscar):
+
+![Flamegraph de cargo flamegraph](docs/flamegraph_perf.png)
+
+### Lectura del flamegraph
+
+El ancho de cada bloque es la proporción de muestras en las que esa función estaba en la pila, **no** el orden en que se ejecutó. Del total de muestras (36 864 a 997 Hz):
+
+| Bloque | % de las muestras | Qué representa |
+|---|---:|---|
+| `rasterize` | 88.2 % | todo el benchmark, más el `memcpy` de la última fila |
+| └ `triangle_barycentric` → `barycentric_coverage` | 63.3 % | |
+|   └ bucle del rectángulo (`RangeInclusive::next`, comparaciones `i64`) | 16.7 % | **cálculos geométricos** |
+|   └ `edge_function` | 11.0 % | **cálculos geométricos**: las tres funciones de arista |
+|   └ `pixel_center` | 7.0 % | **cálculos geométricos**: centro del píxel |
+|   └ cuerpo del bucle sin marco propio | ~18 % | **cálculos geométricos** (código inlineado) |
+|   └ `Vec::push` | 10.3 % | creación de fragmentos |
+| └ `triangle_scanline` → `scanline_coverage` | 18.4 % | |
+|   └ `Vec::push` | 12.1 % | **creación de fragmentos** |
+| └ `triangle_wireframe` → `line` | 5.1 % | contorno |
+| `[libc.so.6]` junto a `rasterize` (`memcpy`) | 10.2 % | **copiar** con `extend` el `Vec` de cada triángulo al resultado final |
+| `RawVec::grow_one` → `realloc` | 1.7 % | **crecimiento del `Vec`** con `push` |
+
+Cómo leerlo:
+
+* **Baricéntrico:** la mayor parte del bloque son cálculos geométricos: recorrer el rectángulo, calcular el centro y evaluar las funciones de arista en cada píxel (unos 53 de sus 63 puntos). Crear fragmentos ocupa solo 10 puntos. Lo caro es probar píxeles, incluso los que quedan fuera del triángulo.
+* **Scanline:** casi no aparece geometría (dos divisiones por fila). La mayor parte del bloque es `Vec::push`, es decir, escribir fragmentos.
+* **`Vec`:** la copia de `extend` (`memcpy`, 10 %) cuesta más que el crecimiento por `push` (`grow_one`/`realloc`, 1.7 %). La causa es que cada triángulo crea su propio `Vec` y `rasterize` vuelve a copiarlo entero al resultado.
+
+> **Notas para leer el SVG.**
+> * `memcpy` está en `libc`, que no se compila con frame pointers. Por eso `perf` no ve quién lo llamó y lo pone como `[libc.so.6]` al lado de `rasterize`, en lugar de debajo de `Vec::extend`.
+> * En `rasterize`, la llamada `fragments.extend(triangle(...))` está en una sola línea. Por eso el bloque del scanline aparece colgando de los marcos `Vec::extend` / `ManuallyDrop` de esa línea: es la dirección de retorno, no una llamada de verdad.
+> * Con `--release` las funciones pequeñas se *inlinean*. El perfilador reparte sus muestras según la línea de código más cercana, así que el reparto *dentro* de una función es aproximado. Lo confiable es el ancho de `triangle_barycentric`, `triangle_scanline`, `push` y del `memcpy`. Por eso también medí el desglose por etapas (abajo).
+
+### Segundo perfilador (opcional): `pprof`
+
+Antes de tener `perf` instalado, añadí al programa un perfilador por muestreo dentro del proceso ([`pprof`](https://crates.io/crates/pprof), *feature* opcional, con `SIGPROF`). No necesita permisos y genera el mismo tipo de gráfico:
 
 ```bash
 cargo run --release --features pprof -- --benchmark-triangles --repeats 5 --pprof-flamegraph docs/flamegraph.svg
 ```
 
-El modo `--benchmark-triangles` también funciona con el comando del enunciado si `perf` está disponible:
+Su resultado ([`docs/flamegraph.svg`](docs/flamegraph.svg), [`docs/flamegraph.png`](docs/flamegraph.png)) coincide con el de `perf`:
 
-```bash
-sudo pacman -S perf && cargo install flamegraph
-cargo flamegraph -- --benchmark-triangles
-```
-
-El perfil es [`docs/flamegraph.svg`](docs/flamegraph.svg) (ábranlo en el navegador para que sea interactivo: se puede hacer zoom y buscar). En `Cargo.toml` se activan los símbolos de depuración del perfil `release` para que aparezcan los nombres de las funciones.
-
-![Flamegraph del benchmark](docs/flamegraph.png)
-
-### Lectura del flamegraph
-
-El ancho de cada bloque es la proporción de muestras en las que esa función estaba en la pila, **no** el orden en que se ejecutó. Del total de muestras:
-
-| Bloque | % de las muestras | Qué representa |
-|---|---:|---|
-| `rasterize` | 97.0 % | todo el benchmark |
-| └ `triangle_barycentric` → `barycentric_coverage` | 58.8 % | |
-|   └ bucle del rectángulo (aparece como `pixel_center`) | 57.0 % | **cálculos geométricos**: centro del píxel y las tres funciones de arista |
-|   └ `Vec::push` | 1.7 % | creación de fragmentos |
-| └ `triangle_scanline` → `scanline_coverage` | 18.5 % | |
-|   └ `Vec::push` (incluye `grow_one` → `realloc`) | 18.4 % | **creación de fragmentos y crecimiento del `Vec`** |
-| └ `Vec::extend` → `append_elements` → `copy_nonoverlapping` | 15.3 % | **copiar** el `Vec` de cada triángulo al resultado final |
-| └ `triangle_wireframe` → `line` | 4.4 % | contorno |
-
-* En el **baricéntrico** casi todo el bloque está en el bucle que recorre el rectángulo. Lo más caro es la geometría, no los fragmentos.
-* En el **scanline** casi no aparece la geometría (dos divisiones por fila). Prácticamente todo el bloque es `Vec::push`: escribir fragmentos, y `grow_one`/`realloc` cuando el `Vec` se llena.
-* Un 15 % adicional es `extend`, que copia los fragmentos del `Vec` de cada triángulo al `Vec` que devuelve `rasterize`. En total, `grow_one` (crecimiento por `push`) suma 4.4 %, `realloc` 4.3 % y `brk` 1.7 % (memoria que se le pide y se le devuelve al sistema operativo).
-
-> Nota: con `--release` las funciones pequeñas (`edge_function`, `Fragment::new`, el closure que hace `push`) se *inlinean*. El perfilador atribuye esas muestras a la línea de código más cercana según la información de depuración, así que el reparto *dentro* de una función inlineada es aproximado. Por ejemplo, las muestras del bucle baricéntrico aparecen bajo `pixel_center`, y en otra ejecución aparecieron bajo `RangeInclusive::next`: es el mismo bucle con otra etiqueta. Lo confiable es el ancho de `triangle_barycentric`, `triangle_scanline`, `push` y `extend`. Para confirmarlo con números hice el desglose siguiente.
+| | `cargo flamegraph` (perf) | `pprof` |
+|---|---:|---:|
+| `triangle_barycentric` | 63.3 % | 58.8 % |
+| `triangle_scanline` | 18.4 % | 18.5 % |
+| copia de `extend` | 10.2 % | 15.3 % |
+| `triangle_wireframe` | 5.1 % | 4.4 % |
 
 ### Desglose medido por etapas
 
@@ -278,7 +308,7 @@ Conclusiones:
 
 * **Baricéntrico → los cálculos geométricos.** En los casos 1 y 7, el 84–86 % del tiempo es la prueba de los píxeles del rectángulo, aunque solo se guarden los que están dentro. Escribir los fragmentos añade poco (5–10 %): el procesador escribe mientras sigue calculando.
 * **Scanline → la creación de fragmentos.** La geometría es casi gratis (8.7 µs para 133 000 fragmentos). En los casos 1 y 7, cerca del 70 % del tiempo es escribir cada `Fragment` (12 bytes) en memoria, unos 5 ns por fragmento.
-* **El crecimiento del `Vec` (etapa 3 → 4) cuesta entre el 6 y el 24 %** del total en los casos 1 y 7, y mucho más con triángulos muy grandes. En el caso 4 (un triángulo de ~270 000 píxeles, ~3 MB de fragmentos) añade **+4.4 ms**, el 60–75 % del total. Cada `realloc` copia todo lo que ya había, el `extend` lo vuelve a copiar, los bloques ya no caben en la caché y la memoria se pide y se devuelve al sistema operativo en cada ejecución (`brk` en el perfil). Por eso en ese caso el scanline cuesta 17 ns por fragmento, contra unos 6.5 ns en los demás.
+* **El crecimiento del `Vec` (etapa 3 → 4) cuesta entre el 6 y el 24 %** del total en los casos 1 y 7, y mucho más con triángulos muy grandes. En el caso 4 (un triángulo de ~270 000 píxeles, ~3 MB de fragmentos) añade **+4.4 ms**, el 60–75 % del total. Cada `realloc` copia todo lo que ya había, el `extend` lo vuelve a copiar, los bloques ya no caben en la caché y la memoria se pide y se devuelve al sistema operativo en cada ejecución (`brk` en el perfil de `pprof`). Por eso en ese caso el scanline cuesta 17 ns por fragmento, contra unos 6.5 ns en los demás.
 * Mejoras posibles, guiadas por el perfil: reservar la capacidad del `Vec` con el área del triángulo, escribir directamente en un único `Vec` de salida en lugar de crear uno por triángulo y luego copiarlo, reutilizar ese `Vec` entre cuadros y, para el baricéntrico, evaluar las funciones de arista de forma incremental (sumar una constante por píxel) o descartar bloques del rectángulo completos. No las apliqué a las funciones medidas, para que los números de arriba correspondan a las implementaciones tal como se piden en el laboratorio.
 
 ## Resumen de diferencias encontradas
