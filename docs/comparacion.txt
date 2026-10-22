@@ -1,0 +1,12 @@
+| Caso | Baricentrico | Scanline | Solo baricentrico | Solo scanline | Duplicados | Resultado |
+|---|---:|---:|---:|---:|---:|---|
+| 1. Pequeno y grande | 133440 | 133440 | 0 | 0 | 0 / 0 | identicos |
+| 2. Borde horizontal y borde vertical | 123938 | 123938 | 0 | 0 | 0 / 0 | identicos |
+| 3. Orden inverso | 110622 | 110622 | 0 | 0 | 0 / 0 | identicos |
+| 4. Parcialmente fuera | 283602 | 283602 | 0 | 0 | 0 / 0 | identicos |
+| 5. Vertices colineales | 0 | 0 | 0 | 0 | 0 / 0 | identicos |
+| 6. Aristas compartidas | 187496 | 187496 | 0 | 0 | 0 / 0 | identicos |
+
+Orden original (a, b, c) vs. orden inverso (c, b, a):
+  FilledBarycentric: 110622 vs 110622 fragmentos -> identicos
+  FilledScanline: 110622 vs 110622 fragmentos -> identicos

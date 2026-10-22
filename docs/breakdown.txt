@@ -1,0 +1,41 @@
+## Desglose del tiempo por etapa
+
+### 1. Pequeno y grande
+
+| Algoritmo | Etapa | Por ejecucion | Diferencia con la etapa anterior |
+|---|---|---:|---:|
+| FilledBarycentric | 1. Solo geometria (contar) | 1598.00 µs | - |
+| FilledBarycentric | 2. + escribir en Vec reutilizado | 1682.65 µs | +84.66 µs |
+| FilledBarycentric | 3. + memoria nueva (with_capacity) | 1698.69 µs | +16.04 µs |
+| FilledBarycentric | 4. Completa (Vec crece + extend) | 1907.24 µs | +208.55 µs |
+| FilledScanline | 1. Solo geometria (contar) | 8.65 µs | - |
+| FilledScanline | 2. + escribir en Vec reutilizado | 668.46 µs | +659.82 µs |
+| FilledScanline | 3. + memoria nueva (with_capacity) | 702.24 µs | +33.78 µs |
+| FilledScanline | 4. Completa (Vec crece + extend) | 926.52 µs | +224.28 µs |
+
+### 4. Parcialmente fuera
+
+| Algoritmo | Etapa | Por ejecucion | Diferencia con la etapa anterior |
+|---|---|---:|---:|
+| FilledBarycentric | 1. Solo geometria (contar) | 2268.20 µs | - |
+| FilledBarycentric | 2. + escribir en Vec reutilizado | 2852.89 µs | +584.69 µs |
+| FilledBarycentric | 3. + memoria nueva (with_capacity) | 2912.42 µs | +59.54 µs |
+| FilledBarycentric | 4. Completa (Vec crece + extend) | 7342.24 µs | +4429.82 µs |
+| FilledScanline | 1. Solo geometria (contar) | 15.59 µs | - |
+| FilledScanline | 2. + escribir en Vec reutilizado | 1507.67 µs | +1492.08 µs |
+| FilledScanline | 3. + memoria nueva (with_capacity) | 1548.64 µs | +40.97 µs |
+| FilledScanline | 4. Completa (Vec crece + extend) | 5998.30 µs | +4449.65 µs |
+
+### 7. Malla aleatoria (1000 triangulos)
+
+| Algoritmo | Etapa | Por ejecucion | Diferencia con la etapa anterior |
+|---|---|---:|---:|
+| FilledBarycentric | 1. Solo geometria (contar) | 23450.35 µs | - |
+| FilledBarycentric | 2. + escribir en Vec reutilizado | 25891.09 µs | +2440.74 µs |
+| FilledBarycentric | 3. + memoria nueva (with_capacity) | 25619.06 µs | -272.03 µs |
+| FilledBarycentric | 4. Completa (Vec crece + extend) | 27328.87 µs | +1709.81 µs |
+| FilledScanline | 1. Solo geometria (contar) | 929.19 µs | - |
+| FilledScanline | 2. + escribir en Vec reutilizado | 6665.62 µs | +5736.42 µs |
+| FilledScanline | 3. + memoria nueva (with_capacity) | 6686.19 µs | +20.58 µs |
+| FilledScanline | 4. Completa (Vec crece + extend) | 8313.48 µs | +1627.29 µs |
+

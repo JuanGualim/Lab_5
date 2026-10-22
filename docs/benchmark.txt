@@ -1,0 +1,73 @@
+Benchmark de rasterizacion: mediana de 11 mediciones de 100 ejecuciones cada una.
+Solo se mide `rasterize` (sin textura, ventana ni esperas entre cuadros).
+
+### 1. Pequeno y grande
+
+Triangulos: 2 | pixeles evaluados por el baricentrico (rectangulos): 287179 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 1573 | 1.266 ms | 12.66 µs | 8.05 | 1.239 ms | 1.338 ms |
+| FilledBarycentric | 133440 | 182.534 ms | 1825.34 µs | 13.68 | 176.324 ms | 239.294 ms |
+| FilledScanline | 133440 | 90.260 ms | 902.59 µs | 6.76 | 85.905 ms | 96.958 ms |
+
+### 2. Borde horizontal y borde vertical
+
+Triangulos: 2 | pixeles evaluados por el baricentrico (rectangulos): 249022 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 2106 | 1.870 ms | 18.70 µs | 8.88 | 1.796 ms | 2.012 ms |
+| FilledBarycentric | 123938 | 157.782 ms | 1577.82 µs | 12.73 | 154.920 ms | 163.001 ms |
+| FilledScanline | 123938 | 76.769 ms | 767.69 µs | 6.19 | 75.247 ms | 77.376 ms |
+
+### 3. Orden inverso
+
+Triangulos: 1 | pixeles evaluados por el baricentrico (rectangulos): 243991 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 1353 | 1.027 ms | 10.27 µs | 7.59 | 0.950 ms | 1.053 ms |
+| FilledBarycentric | 110622 | 158.272 ms | 1582.72 µs | 14.31 | 154.137 ms | 178.907 ms |
+| FilledScanline | 110622 | 75.241 ms | 752.41 µs | 6.80 | 72.928 ms | 95.365 ms |
+
+### 4. Parcialmente fuera
+
+Triangulos: 2 | pixeles evaluados por el baricentrico (rectangulos): 382600 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 1619 | 2.407 ms | 24.07 µs | 14.87 | 2.145 ms | 2.638 ms |
+| FilledBarycentric | 283602 | 627.355 ms | 6273.55 µs | 22.12 | 617.659 ms | 648.477 ms |
+| FilledScanline | 283602 | 482.672 ms | 4826.72 µs | 17.02 | 474.767 ms | 493.019 ms |
+
+### 5. Vertices colineales
+
+Triangulos: 3 | pixeles evaluados por el baricentrico (rectangulos): 0 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 2049 | 1.873 ms | 18.73 µs | 9.14 | 1.766 ms | 2.205 ms |
+| FilledBarycentric | 0 | 0.020 ms | 0.20 µs | NaN | 0.018 ms | 0.027 ms |
+| FilledScanline | 0 | 0.020 ms | 0.20 µs | NaN | 0.020 ms | 0.024 ms |
+
+### 6. Aristas compartidas
+
+Triangulos: 12 | pixeles evaluados por el baricentrico (rectangulos): 470640 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 6772 | 6.664 ms | 66.64 µs | 9.84 | 6.368 ms | 7.653 ms |
+| FilledBarycentric | 187496 | 310.205 ms | 3102.05 µs | 16.54 | 305.554 ms | 451.687 ms |
+| FilledScanline | 187496 | 115.791 ms | 1157.91 µs | 6.18 | 114.946 ms | 118.277 ms |
+
+### 7. Malla aleatoria (1000 triangulos)
+
+Triangulos: 1000 | pixeles evaluados por el baricentrico (rectangulos): 3970736 | baricentrico vs scanline: mismas posiciones
+
+| Modo | Fragmentos | Mediana (100 ej.) | Por ejecucion | ns/fragmento | Min | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Wireframe | 136792 | 267.535 ms | 2675.34 µs | 19.56 | 262.669 ms | 296.402 ms |
+| FilledBarycentric | 1178594 | 2712.137 ms | 27121.37 µs | 23.01 | 2668.036 ms | 2830.638 ms |
+| FilledScanline | 1178594 | 778.075 ms | 7780.75 µs | 6.60 | 770.419 ms | 810.632 ms |
+
