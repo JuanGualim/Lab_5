@@ -1,0 +1,17 @@
+[package]
+name = "lab5_triangulos"
+version = "0.1.0"
+edition = "2024"
+description = "Laboratorio: rellenar triángulos (coordenadas baricéntricas vs. líneas horizontales)"
+
+[dependencies]
+raylib = { version = "6.0.0", features = ["SUPPORT_IMAGE_GENERATION"] }
+# Perfilador en proceso (opcional). Solo se usa si no hay `perf`/`cargo-flamegraph`.
+pprof = { version = "0.15", features = ["flamegraph"], optional = true }
+
+[features]
+pprof = ["dep:pprof"]
+
+[profile.release]
+# Símbolos de depuración para que el perfilador muestre nombres de funciones.
+debug = true
